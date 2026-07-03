@@ -23,6 +23,7 @@ def fetch_weather_forecast(latitude: float, longitude: float) -> pd.DataFrame:
     hourly = data["hourly"]
     df = pd.DataFrame({
         "datetime":              hourly["time"],
+        "datetime_local":        pd.to_datetime(hourly["time"]).tz_localize('GMT').tz_convert('America/New_York'),
         "temp_f":                hourly["temperature_2m"],
         "relative_humidity_pct": hourly["relative_humidity_2m"],
         "precipitation_in":      hourly["precipitation"],

@@ -4,26 +4,79 @@ from pathlib import Path
 DATA_PATH = Path("data/weather_history.csv")
 
 def transform(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df["datetime"]   = pd.to_datetime(df["datetime"])
-    df["fetched_at"] = pd.to_datetime(df["fetched_at"])
+    
+    historical_df = pd.read_csv(DATA_PATH, parse_dates=["datetime", "fetched_at"]) if DATA_PATH.exists() else pd.DataFrame()
 
-    df["date"]         = df["datetime"].dt.date
-    df["hour"]         = df["datetime"].dt.hour
-    df["day_of_week"]  = df["datetime"].dt.day_name()
-    df["is_daytime"]   = df["hour"].between(6, 20)
-    df["wind_cardinal"] = df["wind_direction_deg"].apply(_deg_to_cardinal)
-    df["total_irradiance"] = df["shortwave_radiation"] + df["diffuse_radiation"]
-    df["is_sunny"]  = (df["shortwave_radiation"] > 200) & (df["cloud_cover_pct"] < 40)
-    df["uv_risk"]   = df["uv_index"].apply(_uv_risk_label)
-    df["is_raining"] = df["precipitation_in"] > 0.0
-    df["feels_like_f"] = df.apply(
-        lambda r: _heat_index_f(r["temp_f"], r["relative_humidity_pct"])
-                  if r["temp_f"] >= 80
-                  else _wind_chill_f(r["temp_f"], r["wind_speed_mph"]),
-        axis=1,
+    historical_df = (
+        historical_df
+        .sort_values("fetched_at", ascending=False)
+        .drop_duplicates(subset=["datetime", "latitude", "longitude"], keep="first")
+        .loc[lambda df: pd.to_datetime(df["datetime"]) > pd.Timestamp.now(tz="UTC").tz_convert(None) - pd.Timedelta(days=3)]
+        .sort_values("datetime")
+        .reset_index(drop=True)
     )
-    return df
+
+    daily_avg = (
+        historical_df
+        .assign(
+            datetime_local=lambda df: pd.to_datetime(df["datetime"]).dt.tz_localize("UTC").dt.tz_convert("America/New_York"),
+            date=lambda df: df.datetime_local.dt.date
+            )
+        .groupby('date')[['temp_f',
+                        'wind_speed_mph',
+                        'shortwave_radiation',
+                        'direct_normal_irr',
+                        'diffuse_radiation',
+                        ]]
+        .mean()
+        .shift(1)  # shift by 1 day
+        .rename(columns={'temp_f': 'prior_day_temp', 
+                        'wind_speed_mph': 'prior_day_wind_speed',
+                        'shortwave_radiation': 'prior_day_shortwave_radiation',
+                        'direct_normal_irr': 'prior_day_direct_normal_irradiance',
+                        'diffuse_radiation': 'prior_day_diffuse_radiation'})
+    )
+
+    weather_transformed = (
+        df.copy()
+        .assign(
+            datetime=lambda df: pd.to_datetime(df["datetime"]),
+            datetime_local=lambda df: pd.to_datetime(df["datetime"]).dt.tz_localize("UTC").dt.tz_convert("America/New_York"),
+            date=lambda df: df.datetime_local.dt.date,
+            year=lambda df: df.datetime_local.dt.year,
+            month=lambda df: df.datetime_local.dt.month,
+            day_number=lambda df: df.datetime_local.dt.day_of_year,
+            # 1-day rolling mean, sum, and median based on discretion
+            rolling_temperature_24h=lambda df: df["temp_f"].transform(
+                        lambda x: x.rolling(window=24, min_periods=1).mean()
+                        ),
+            rolling_precipitation_24h=lambda df: df["precipitation_in"].transform(
+                        lambda x: x.rolling(window=24, min_periods=1).sum()
+                        ),
+            rolling_wind_direction_24h=lambda df: df["wind_direction_deg"].transform(
+                        lambda x: x.rolling(window=24, min_periods=1).median()
+                        ),
+            rolling_wind_speed_24h=lambda df: df["wind_speed_mph"].transform(
+                lambda x: x.rolling(window=24, min_periods=1).mean()
+                ),
+            # 3-day rolling mean, sum, and median based on discretion
+            rolling_temperature_72h=lambda df: df["temp_f"].transform(
+                        lambda x: x.rolling(window=72, min_periods=1).mean()
+                        ),
+            rolling_precipitation_72h=lambda df: df["precipitation_in"].transform(
+                        lambda x: x.rolling(window=72, min_periods=1).sum()
+                        ),
+            rolling_wind_direction_72h=lambda df: df["wind_direction_deg"].transform(
+                        lambda x: x.rolling(window=72, min_periods=1).median()
+                        ),
+            rolling_wind_speed_72h=lambda df: df["wind_speed_mph"].transform(
+                lambda x: x.rolling(window=72, min_periods=1).mean()
+                ),
+        )
+        .merge(daily_avg, on='date', how='left')
+    )
+    
+    return weather_transformed
 
 
 def load_to_csv(new_data: pd.DataFrame) -> pd.DataFrame:
