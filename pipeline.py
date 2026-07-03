@@ -29,10 +29,10 @@ def main():
     log.info(f"CSV now has {len(history)} total rows")
 
     # Inference
-    # results = run_inference(history)
-    # log.info(f"Inference results: {results}")
+    results = run_inference(history)
+    log.info(f"Inference results: {results}")
 
-    # log.info("Pipeline complete")
+    log.info("Pipeline complete")
 
 if __name__ == "__main__":
     main()

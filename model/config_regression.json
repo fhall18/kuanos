@@ -1,0 +1,29 @@
+{
+  "features": [
+    "temp_f",
+    "relative_humidity_pct",
+    "precipitation_in",
+    "wind_speed_mph",
+    "wind_direction_deg",
+    "cloud_cover_pct",
+    "shortwave_radiation",
+    "direct_normal_irr",
+    "diffuse_radiation",
+    "rolling_temperature_24h",
+    "rolling_wind_speed_24h",
+    "rolling_wind_direction_24h",
+    "rolling_precipitation_24h",
+    "rolling_temperature_72h",
+    "rolling_wind_speed_72h",
+    "rolling_wind_direction_72h",
+    "rolling_precipitation_72h",
+    "prior_day_temp",
+    "prior_day_wind_speed",
+    "prior_day_shortwave_radiation",
+    "prior_day_direct_normal_irradiance",
+    "prior_day_diffuse_radiation",
+    "month",
+    "day_number"
+  ],
+  "target": "status_numeric"
+}
