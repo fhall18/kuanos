@@ -42,8 +42,8 @@ def _gbm_predictions(df: pd.DataFrame, model, config: dict) -> pd.DataFrame:
     preds = model.predict(valid[features])
 
     out = (
-        valid.copy()
-        .loc[features + ["datetime", "datetime_local"]]
+        valid[features + ["datetime", "datetime_local"]]
+        .copy()
         .assign(
             predicted_at=pd.Timestamp.now(tz="UTC"),
             raw_preds=preds,
