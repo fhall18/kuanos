@@ -30,7 +30,10 @@ def _load_gbm() -> tuple:
 # ── Generate predictions ──────────────────────────────────────────────────────
 def _gbm_predictions(df: pd.DataFrame, model, config: dict) -> pd.DataFrame:
 
-    df = df.copy()
+    df = (
+        df.copy()
+        .loc[lambda df: pd.to_datetime(df["datetime"]) > pd.Timestamp.now(tz="UTC").floor("h").tz_convert(None)]
+    )
 
     features = config.get("features", [])
     missing  = [f for f in features if f not in df.columns]

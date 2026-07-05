@@ -2,7 +2,7 @@ name: Daily Weather Pipeline
 
 on:
   schedule:
-    - cron: '0 8 * * *'    # Once a day at 08:00 UTC
+    - cron: '17 13 * * *'    # Once a day at 13:17 UTC
   workflow_dispatch:
 
 permissions:
