@@ -61,7 +61,7 @@ def _predictions_to_csv(predictions: pd.DataFrame, path: Path) -> None:
     """
     if path.exists():
         existing = pd.read_csv(path, parse_dates=["datetime"])
-        combined = pd.concat([existing, predictions]).drop_duplicates(subset=["datetime"], keep="last")
+        combined = pd.concat([existing, predictions])
         combined.to_csv(path, index=False)
     else:
         predictions.to_csv(path, index=False)
