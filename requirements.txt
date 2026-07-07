@@ -1,3 +1,5 @@
+beautifulsoup4==4.15.0
+lightgbm>=4.3.0
 requests>=2.31.0
 pandas>=2.1.0
 numpy>=1.26.0
@@ -6,4 +8,3 @@ plotnine
 xgboost
 seaborn
 pymc==5.28.5
-lightgbm>=4.3.0
