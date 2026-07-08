@@ -81,7 +81,7 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
     return weather_transformed
 
 
-def load_to_parquet(new_data: pd.DataFrame) -> pd.DataFrame:
+def load_to_parquet(new_data: pd.DataFrame) -> float:
     """
     Append new forecast rows to the historical Parquet file.
 
@@ -99,11 +99,21 @@ def load_to_parquet(new_data: pd.DataFrame) -> pd.DataFrame:
     """
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+    # Drop derived columns that don't belong in raw history
+    derived_cols = [c for c in new_data.columns if c not in [
+        "datetime", "temp_f", "relative_humidity_pct", "precipitation_in",
+        "wind_speed_mph", "wind_direction_deg", "cloud_cover_pct",
+        "shortwave_radiation", "direct_normal_irr", "diffuse_radiation",
+        "uv_index", "fetched_at", "latitude", "longitude",
+        "utc_offset_seconds", "timezone_abbrev"
+    ]]
+    raw_data = new_data.drop(columns=derived_cols, errors="ignore")
+
     if DATA_PATH.exists():
         existing = pd.read_parquet(DATA_PATH)
-        combined = pd.concat([existing, new_data], ignore_index=True)
+        combined = pd.concat([existing, raw_data], ignore_index=True)
     else:
-        combined = new_data.copy()
+        combined = raw_data.copy()
 
     before = len(combined)
     combined = (
@@ -117,10 +127,10 @@ def load_to_parquet(new_data: pd.DataFrame) -> pd.DataFrame:
 
     combined.to_parquet(DATA_PATH, index=False)
     print(
-        f"[ETL] +{after - (before - len(new_data))} new rows appended | "
+        f"[ETL] +{after - (before - len(raw_data))} new rows appended | "
         f"{after} total rows | {DATA_PATH}"
     )
-    return combined
+    return after
 
 
 # ── Helpers (unchanged) ───────────────────────────────────────────────────────

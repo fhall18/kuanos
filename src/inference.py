@@ -48,7 +48,8 @@ def _gbm_predictions(df: pd.DataFrame, model, config: dict) -> pd.DataFrame:
         valid[features + ["datetime", "datetime_local"]]
         .copy()
         .assign(
-            predicted_at=pd.Timestamp.now(tz="UTC"),
+            datetime_local=lambda df: df["datetime_local"].astype(str),
+            predicted_at=pd.Timestamp.now(tz="UTC").isoformat(),
             raw_preds=preds,
             target=lambda df: np.round(df["raw_preds"], 1)
         )
