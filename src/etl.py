@@ -1,11 +1,11 @@
 import pandas as pd
 from pathlib import Path
 
-DATA_PATH = Path("data/weather_history.csv")
+DATA_PATH = Path("data/weather_history.parquet")
 
 def transform(df: pd.DataFrame) -> pd.DataFrame:
     
-    historical_df = pd.read_csv(DATA_PATH, parse_dates=["datetime", "fetched_at"]) if DATA_PATH.exists() else pd.DataFrame()
+    historical_df = pd.read_parquet(DATA_PATH) if DATA_PATH.exists() else pd.DataFrame()
 
     historical_df = (
         historical_df
@@ -100,7 +100,7 @@ def load_to_csv(new_data: pd.DataFrame) -> pd.DataFrame:
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     if DATA_PATH.exists():
-        existing = pd.read_csv(DATA_PATH, parse_dates=["datetime", "fetched_at"])
+        existing = pd.read_parquet(DATA_PATH)
         combined = pd.concat([existing, new_data], ignore_index=True)
     else:
         combined = new_data.copy()
@@ -115,7 +115,7 @@ def load_to_csv(new_data: pd.DataFrame) -> pd.DataFrame:
     )
     after = len(combined)
 
-    combined.to_csv(DATA_PATH, index=False)
+    combined.to_parquet(DATA_PATH, index=False)
     print(
         f"[ETL] +{after - (before - len(new_data))} new rows appended | "
         f"{after} total rows | {DATA_PATH}"
