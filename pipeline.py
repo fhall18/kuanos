@@ -1,6 +1,6 @@
 import logging
 from src.fetch import fetch_weather_forecast
-from src.etl import transform, load_to_csv
+from src.etl import transform, load_to_parquet
 from src.inference import run_inference
 
 logging.basicConfig(
@@ -25,8 +25,8 @@ def main():
     transformed = transform(raw)
 
     # Load
-    history = load_to_csv(transformed)
-    log.info(f"CSV now has {len(history)} total rows")
+    history = load_to_parquet(transformed)
+    log.info(f"Parquet file now has {len(history)} total rows")
 
     # Inference
     results = run_inference(history)

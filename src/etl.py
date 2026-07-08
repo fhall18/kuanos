@@ -83,14 +83,14 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
 
 def load_to_parquet(new_data: pd.DataFrame) -> pd.DataFrame:
     """
-    Append new forecast rows to the historical CSV.
+    Append new forecast rows to the historical Parquet file.
 
     Deduplication key: (datetime, latitude, longitude, fetched_at)
     ─ This prevents the same pipeline run from writing twice,
       but intentionally KEEPS multiple forecasts for the same
       datetime that were pulled on different days.
 
-    Over time the CSV will look like:
+    Over time the Parquet file will look like:
       datetime            fetched_at           temp_f  ...
       2026-07-04 14:00    2026-07-01 08:00     82.1
       2026-07-04 14:00    2026-07-02 08:00     81.4   ← same hour, different pull
