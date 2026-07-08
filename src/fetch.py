@@ -45,7 +45,7 @@ def fetch_weather_forecast(latitude: float, longitude: float) -> pd.DataFrame:
         'wind_speed_unit':    'mph',
         'precipitation_unit': 'inch',
         'timezone':           'auto',
-        'forecast_days':      7,
+        'forecast_days':      5,
     }
 
     session = _make_session(retries=3, backoff_factor=2.0)

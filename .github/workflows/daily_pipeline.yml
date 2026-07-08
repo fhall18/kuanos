@@ -2,8 +2,10 @@ name: Daily Weather Pipeline
 
 on:
   schedule:
+    - cron: '17 11 * * *'    # 11:17 UTC, which is 6:17 AM EST
+    - cron: '17 15 * * *'    # 15:17 UTC, which is 11:17 AM EST
     - cron: '17 20 * * *'    # 20:17 UTC, which is 3:17 PM EST
-    - cron: '17 12 * * *'    # 12:17 UTC, which is 7:17 AM EST
+    - cron: '17 1 * * *'     # 01:17 UTC, which is 8:17 PM EST
   workflow_dispatch:
 
 permissions:

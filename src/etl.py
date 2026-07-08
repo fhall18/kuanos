@@ -11,13 +11,15 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
         historical_df
         .sort_values("fetched_at", ascending=False)
         .drop_duplicates(subset=["datetime", "latitude", "longitude"], keep="first")
-        .loc[lambda df: pd.to_datetime(df["datetime"]) > pd.Timestamp.now(tz="UTC").tz_convert(None) - pd.Timedelta(days=3)]
+        .loc[lambda df: pd.to_datetime(df["datetime"]) > pd.Timestamp.now(tz="UTC").tz_convert(None) - pd.Timedelta(days=4)]
         .sort_values("datetime")
         .reset_index(drop=True)
     )
 
     daily_avg = (
-        historical_df
+        pd.concat([historical_df, df], ignore_index=True)
+        .sort_values("fetched_at", ascending=False)
+        .drop_duplicates(subset=["datetime", "latitude", "longitude"], keep="first")
         .assign(
             datetime_local=lambda df: pd.to_datetime(df["datetime"]).dt.tz_localize("UTC").dt.tz_convert("America/New_York"),
             date=lambda df: df.datetime_local.dt.date
