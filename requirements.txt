@@ -2,6 +2,7 @@ beautifulsoup4==4.15.0
 lightgbm>=4.3.0
 requests>=2.31.0
 pandas>=2.1.0
+pyarrow>=14.0.0
 numpy>=1.26.0
 scikit-learn>=1.4.0
 plotnine
