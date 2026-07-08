@@ -81,7 +81,7 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
     return weather_transformed
 
 
-def load_to_csv(new_data: pd.DataFrame) -> pd.DataFrame:
+def load_to_parquet(new_data: pd.DataFrame) -> pd.DataFrame:
     """
     Append new forecast rows to the historical CSV.
 

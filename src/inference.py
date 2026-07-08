@@ -10,7 +10,7 @@ REGRESSION_CONFIG_PATH = Path("model/config_regression.json")
 CLASSIFICATION_MODEL_PATH  = Path("model/gbm_classification_model.txt")
 CLASSIFICATION_CONFIG_PATH = Path("model/config_classification.json")
 
-PREDICTIONS_PATH = Path("data/predictions.csv")
+PREDICTIONS_PATH = Path("data/predictions.parquet")
 
 def _load_gbm() -> tuple:
     """
@@ -27,7 +27,7 @@ def _load_gbm() -> tuple:
     print(f"[GBM] Model loaded | trained at {config.get('trained_at', 'unknown')}")
     return model, config
 
-# ── Generate predictions ──────────────────────────────────────────────────────
+# ── Generate predictions ──────────────────────────────────────────────────
 def _gbm_predictions(df: pd.DataFrame, model, config: dict) -> pd.DataFrame:
 
     df = (
@@ -55,16 +55,16 @@ def _gbm_predictions(df: pd.DataFrame, model, config: dict) -> pd.DataFrame:
     )
     return out
 
-def _predictions_to_csv(predictions: pd.DataFrame, path: Path) -> None:
+def _predictions_to_parquet(predictions: pd.DataFrame, path: Path) -> None:
     """
-    Append predictions to a CSV file, creating it if it doesn't exist.
+    Append predictions to a Parquet file, creating it if it doesn't exist.
     """
     if path.exists():
-        existing = pd.read_csv(path, parse_dates=["datetime"])
-        combined = pd.concat([existing, predictions])
-        combined.to_csv(path, index=False)
+        existing = pd.read_parquet(path)
+        combined = pd.concat([existing, predictions], ignore_index=True)
+        combined.to_parquet(path, index=False)
     else:
-        predictions.to_csv(path, index=False)
+        predictions.to_parquet(path, index=False)
 
 def run_inference(df: pd.DataFrame) -> int:
     """
@@ -76,6 +76,6 @@ def run_inference(df: pd.DataFrame) -> int:
         return 0
 
     predictions = _gbm_predictions(df, model, config)
-    _predictions_to_csv(predictions, PREDICTIONS_PATH)
+    _predictions_to_parquet(predictions, PREDICTIONS_PATH)
 
     return len(predictions)
