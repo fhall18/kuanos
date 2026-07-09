@@ -25,10 +25,11 @@ def clean_status(beaches: list[dict]) -> pd.DataFrame:
         .assign(
             beach_name=lambda df: df['Beach'].apply(lambda s: s.split('\n')[0]),
             updated=lambda df: df['Beach'].apply(lambda s: s.split('\n')[2]).str.rstrip("Updated: "),
-            updated_at=lambda df: pd.to_datetime(df["updated"].str.replace("Updated: ", "")),
+            updated_at=lambda df: pd.to_datetime(df["updated"].str.replace("Updated: ", "")), 
+            recorded_at=pd.Timestamp.now(tz="UTC"),
             status=lambda df: df['Status']
         )
-        .filter(items=['beach_name', 'status', 'updated_at'])
+        .filter(items=['beach_name', 'status', 'updated_at', 'recorded_at'])
     )
     return beach_status
 
@@ -44,8 +45,8 @@ def status_to_parquet(beach_status: pd.DataFrame, path: Path) -> None:
     before = len(combined)
     combined = (
         combined
-        .drop_duplicates(subset=["beach_name", "status", "updated_at"])
-        .sort_values(["beach_name", "updated_at"])
+        .drop_duplicates(subset=["beach_name", "status", "updated_at", "recorded_at"])
+        .sort_values(["beach_name", "updated_at", "recorded_at"], ascending=[True, False, False])
         .reset_index(drop=True)
     )
     after = len(combined)
