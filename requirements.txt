@@ -1,4 +1,4 @@
-beautifulsoup4==4.15.0
+playwright
 lightgbm>=4.3.0
 requests>=2.31.0
 pandas>=2.1.0
