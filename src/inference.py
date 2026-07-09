@@ -51,7 +51,7 @@ def _gbm_predictions(df: pd.DataFrame, model, config: dict) -> pd.DataFrame:
             datetime_local=lambda df: df["datetime_local"].astype(str),
             predicted_at=pd.Timestamp.now(tz="UTC").isoformat(),
             raw_preds=preds,
-            target=lambda df: np.round(df["raw_preds"], 1)
+            target=lambda df: np.round(df["raw_preds"], 1).clip(0,1)
         )
     )
     return out
