@@ -3,19 +3,27 @@
 Burlington VT Beach Closure Tracker Scraper
 https://www.burlingtonvt.gov/1219/Beach-Closure-Tracker
 
-Uses Playwright async API to render the page and extract beach statuses from
-the dynamic widget (data-widgetcontainerid="5d5bbbdc-6623-45b1-845c-9d64e35cf1e3").
+Fetches beach status from the Burlington VT ArcGIS REST endpoint.
+No browser or JS rendering needed — plain JSON response.
 Outputs results to data/beach_status.parquet.
 """
 
 import logging
+from datetime import timezone
 from pathlib import Path
 
 import pandas as pd
-from playwright.async_api import async_playwright
+import requests
 
-URL = "https://www.burlingtonvt.gov/1219/Beach-Closure-Tracker"
-WIDGET_ID = "5d5bbbdc-6623-45b1-845c-9d64e35cf1e3"
+ARCGIS_URL = (
+    "https://maps.burlingtonvt.gov/arcgis/rest/services/BTV_Beach_Status/MapServer/0/query"
+    "?where=1%3D1"
+    "&outFields=LocationName,CyanobacteriaDescription,ResultDateTime,DisplayOrder,Notes"
+    "&returnGeometry=false"
+    "&outSR=4326"
+    "&orderByFields=DisplayOrder%20ASC"
+    "&f=geojson"
+)
 DATA_PATH = Path("data/beach_status.parquet")
 
 
@@ -23,24 +31,34 @@ def clean_status(beaches: list[dict]) -> pd.DataFrame:
     beach_status = (
         pd.DataFrame(beaches)
         .assign(
-            beach_name=lambda df: df['Beach'].apply(lambda s: s.split('\n')[0]),
-            updated=lambda df: df['Beach'].apply(lambda s: s.split('\n')[2]).str.rstrip("Updated: "),
-            updated_at=lambda df: pd.to_datetime(df["updated"].str.replace("Updated: ", "")), 
-            recorded_at=pd.Timestamp.now(tz="UTC"),
-            status=lambda df: df['Status']
+            beach_name  = lambda df: df["LocationName"],
+            status      = lambda df: df["CyanobacteriaDescription"],
+            notes       = lambda df: df["Notes"],
+            # ResultDateTime is Unix ms UTC — convert to tz-aware datetime
+            updated_at  = lambda df: pd.to_datetime(df["ResultDateTime"], unit="ms", utc=True),
+            recorded_at = pd.Timestamp.now(tz=timezone.utc),
         )
-        .filter(items=['beach_name', 'status', 'updated_at', 'recorded_at'])
+        .filter(items=["beach_name", "status", "notes", "updated_at", "recorded_at"])
     )
     return beach_status
 
 
-def status_to_parquet(beach_status: pd.DataFrame, path: Path) -> None:
+def status_to_parquet(beach_status: pd.DataFrame, path: Path = DATA_PATH) -> None:
     """Save the beach status DataFrame to a Parquet file."""
     if path.exists():
         existing = pd.read_parquet(path)
         combined = pd.concat([existing, beach_status], ignore_index=True)
     else:
         combined = beach_status.copy()
+
+    # Normalize timestamp columns to tz-aware UTC — existing parquet rows from
+    # the old scraper may be tz-naive, which causes sort_values to fail when
+    # mixed with the tz-aware timestamps the ArcGIS scraper produces
+    for col in ("updated_at", "recorded_at"):
+        if col in combined.columns:
+            combined[col] = pd.to_datetime(combined[col], utc=False).dt.tz_localize(
+                "UTC", ambiguous="NaT", nonexistent="NaT"
+            ) if combined[col].dt.tz is None else combined[col].dt.tz_convert("UTC")
 
     before = len(combined)
     combined = (
@@ -57,64 +75,22 @@ def status_to_parquet(beach_status: pd.DataFrame, path: Path) -> None:
     logging.info(f"[Beach Status] Parquet file now has {after} total rows | {path}")
 
 
-async def scrape_beach_statuses():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+def scrape_beach_statuses() -> list[dict]:
+    logging.info(f"Loading {ARCGIS_URL}...")
+    resp = requests.get(ARCGIS_URL, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
 
-        logging.info(f"Loading {URL}...")
-        await page.goto(URL, wait_until="networkidle", timeout=30000)
+    features = data.get("features", [])
+    if not features:
+        raise RuntimeError("ArcGIS response contained no features — endpoint may have changed")
 
-        # Wait for the widget container to be present
-        widget = page.locator(f'[data-widgetcontainerid="{WIDGET_ID}"]')
-        try:
-            await widget.wait_for(timeout=15000)
-        except Exception:
-            raise RuntimeError(
-                f"Widget '{WIDGET_ID}' not found — the page structure may have changed."
-            )
+    beaches = [f.get("properties", {}) for f in features]
+    logging.info(f"Found data for {len(beaches)} locations.")
+    return beaches
 
-        # Give any inner JS a moment to finish rendering
-        await page.wait_for_timeout(2000)
-
-        beaches = []
-
-        # Try to find a table inside the widget
-        tables = widget.locator("table")
-        table_count = await tables.count()
-
-        if table_count > 0:
-            table = tables.first
-            headers = [
-                (await th.inner_text()).strip()
-                for th in await table.locator("thead th, thead td").all()
-            ]
-            if not headers:
-                headers = [
-                    (await td.inner_text()).strip()
-                    for td in await table.locator("tr").first.locator("td, th").all()
-                ]
-
-            rows = await table.locator("tbody tr").all()
-            if not rows:
-                all_rows = await table.locator("tr").all()
-                rows = all_rows[1:] if len(all_rows) > 1 else []
-
-            for row in rows:
-                cells = [(await td.inner_text()).strip() for td in await row.locator("td, th").all()]
-                if cells:
-                    if headers and len(headers) == len(cells):
-                        beaches.append(dict(zip(headers, cells)))
-                    else:
-                        beaches.append({"raw": " | ".join(cells)})
-
-        # If no table found, fall back to all text content in the widget
-        if not beaches:
-            text = await widget.inner_text()
-            for line in text.splitlines():
-                line = line.strip()
-                if line:
-                    beaches.append({"raw": line})
-
-        await browser.close()
-        return beaches
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    beaches = scrape_beach_statuses()
+    beach_status = clean_status(beaches)
+    status_to_parquet(beach_status)

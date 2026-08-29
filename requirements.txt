@@ -9,3 +9,4 @@ plotnine
 xgboost
 seaborn
 pymc==5.28.5
+torch>=2.2.0
