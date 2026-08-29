@@ -3,7 +3,7 @@ import logging
 from src.fetch import fetch_weather_forecast
 from src.etl import transform, load_to_parquet
 from src.inference import run_inference
-from src.status import scrape_beach_statuses, clean_status, status_to_parquet, DATA_PATH
+from src.status import run as run_beach_status
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,11 +38,11 @@ def main():
     # Beach status
     log.info("Scraping beach statuses")
     try:
-        beaches = asyncio.run(scrape_beach_statuses())
-        log.info(f"Found {len(beaches)} beach entries")
-        beach_status = clean_status(beaches)
-        log.info(f"Last updated: {beach_status['updated_at'].max()}")
-        status_to_parquet(beach_status, DATA_PATH)
+        beach_status = run_beach_status()
+        if beach_status is not None:
+            log.info(f"Last updated: {beach_status['updated_at'].max()}")
+        else:
+            log.warning("No beach status available")
     except Exception as e:
         log.error(f"Beach scrape failed: {e}")
 
