@@ -133,8 +133,11 @@ def status_to_parquet(beach_status: pd.DataFrame, path: Path = DATA_PATH) -> Non
     for col in ("updated_at", "recorded_at"):
         if col not in combined.columns:
             continue
+        # Coerce to datetime first — column may be object dtype if old parquet
+        # rows had mixed or null values
+        combined[col] = pd.to_datetime(combined[col], utc=False, errors="coerce")
         if combined[col].dt.tz is None:
-            combined[col] = pd.to_datetime(combined[col], utc=False).dt.tz_localize(
+            combined[col] = combined[col].dt.tz_localize(
                 "UTC", ambiguous="NaT", nonexistent="NaT"
             )
         else:
